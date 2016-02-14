@@ -27,6 +27,7 @@ import java.nio.IntBuffer;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
+import javax.microedition.khronos.opengles.GL11ExtensionPack;
 
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -78,8 +79,8 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 	private static final long FPS_UPDATE_FREQUENCY_NS = 200000000l;
 	private static final long BATTERY_UPDATE_INTERVAL = 10000000000l;
 	private static final long DATE_UPDATE_INTERVAL = 1000000000l;
-	private static final Pattern SAMPLER_2D = Pattern.compile(
-		"uniform[ \t]+sampler2D[ \t]+([a-zA-Z0-9]+);" );
+	private static final Pattern SAMPLER = Pattern.compile(
+		"uniform[ \t]+sampler(2D|Cube)+[ \t]+([a-zA-Z0-9]+);" );
 	private static final String VERTEX_SHADER =
 		"attribute vec2 position;"+
 		"void main()"+
@@ -102,7 +103,7 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 		"}";
 
 	private final TextureBinder textureBinder = new TextureBinder();
-	private final ArrayList<String> textureNames = new ArrayList<String>();
+	private final ArrayList<Texture> textureNames = new ArrayList<Texture>();
 	private final Matrix flipMatrix = new Matrix();
 	private final Calendar calendar = Calendar.getInstance();
 	private final int fb[] = new int[]{ 0, 0 };
@@ -439,11 +440,13 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 		if( backBufferLoc > -1 )
 			textureBinder.bind(
 				backBufferLoc,
+				GLES20.GL_TEXTURE_2D,
 				tx[backTarget] );
 
 		for( int n = 0; n < numberOfTextures; ++n )
 			textureBinder.bind(
 				textureLocs[n],
+				GLES20.GL_TEXTURE_2D,
 				textureIds[n] );
 
 		GLES20.glBindFramebuffer(
@@ -673,7 +676,8 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 
 		for( int n = textureNames.size(); n-- > 0; )
 			textureLocs[n] = GLES20.glGetUniformLocation(
-				program, textureNames.get( n ) );
+				program,
+				textureNames.get( n ).name );
 	}
 
 	private void registerListeners()
@@ -923,14 +927,24 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 
 		for( int n = 0; n < numberOfTextures; ++n )
 		{
+			Texture texture = textureNames.get( n );
 			Bitmap bitmap = ShaderEditorApplication
 				.dataSource
-				.getTexture( textureNames.get( n ) );
+				.getTexture( texture.name );
 
 			if( bitmap == null )
 				continue;
 
-			createTexture( textureIds[n], bitmap );
+			switch( texture.target )
+			{
+				case GLES20.GL_TEXTURE_2D:
+					createTexture( textureIds[n], bitmap );
+					break;
+				case GLES20.GL_TEXTURE_CUBE_MAP:
+					createCubeTexture( textureIds[n], bitmap );
+					break;
+			}
+
 			bitmap.recycle();
 		}
 	}
@@ -977,6 +991,60 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 			GLES20.GL_TEXTURE_2D );
 	}
 
+	private void createCubeTexture( int id, Bitmap bitmap )
+	{
+		GLES20.glBindTexture( GLES20.GL_TEXTURE_CUBE_MAP, id );
+
+		GLES20.glTexParameteri(
+			GLES20.GL_TEXTURE_2D,
+			GLES20.GL_TEXTURE_WRAP_S,
+			GLES20.GL_REPEAT );
+		GLES20.glTexParameteri(
+			GLES20.GL_TEXTURE_2D,
+			GLES20.GL_TEXTURE_WRAP_T,
+			GLES20.GL_REPEAT );
+
+		GLES20.glTexParameteri(
+			GLES20.GL_TEXTURE_2D,
+			GLES20.GL_TEXTURE_MIN_FILTER,
+			GLES20.GL_NEAREST );
+		GLES20.glTexParameteri(
+			GLES20.GL_TEXTURE_2D,
+			GLES20.GL_TEXTURE_MAG_FILTER,
+			GLES20.GL_LINEAR );
+
+		// flip bitmap because 0/0 is bottom left in OpenGL
+		Bitmap b = Bitmap.createBitmap(
+			bitmap,
+			0,
+			0,
+			bitmap.getWidth(),
+			bitmap.getHeight(),
+			flipMatrix,
+			true );
+
+		int targets[] = {
+				GL11ExtensionPack.GL_TEXTURE_CUBE_MAP_POSITIVE_X,
+				GL11ExtensionPack.GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
+				GL11ExtensionPack.GL_TEXTURE_CUBE_MAP_POSITIVE_Y,
+				GL11ExtensionPack.GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
+				GL11ExtensionPack.GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
+				GL11ExtensionPack.GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
+			};
+
+		for( int n = 0, l = targets.length; n < l; ++n )
+			GLUtils.texImage2D(
+				targets[n],
+				0,
+				GLES20.GL_RGBA,
+				b,
+				GLES20.GL_UNSIGNED_BYTE,
+				0 );
+
+		GLES20.glGenerateMipmap(
+			GLES20.GL_TEXTURE_2D );
+	}
+
 	private void indexTextureNames( String source )
 	{
 		if( source == null )
@@ -984,14 +1052,27 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 
 		textureNames.clear();
 
-		for( Matcher m = SAMPLER_2D.matcher( source );
+		for( Matcher m = SAMPLER.matcher( source );
 			m.find(); )
 		{
-			String name = m.group( 1 );
+			String type = m.group( 1 );
+			String name = m.group( 2 );
 
-			if( name != null &&
-				!name.equals( "backbuffer" ) )
-				textureNames.add( name );
+			if( type == null ||
+				name == null ||
+				name.equals( "backbuffer" ) )
+				continue;
+
+			int target;
+
+			if( type.equals( "2D" ) )
+				target = GLES20.GL_TEXTURE_2D;
+			else if( type.equals( "Cube" ) )
+				target = GLES20.GL_TEXTURE_CUBE_MAP;
+			else
+				continue;
+
+			textureNames.add( new Texture( target, name ) );
 		}
 	}
 
@@ -1009,6 +1090,18 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 		return (float)level/scale;
 	}
 
+	private static class Texture
+	{
+		public final int target;
+		public final String name;
+
+		public Texture( int target, String name )
+		{
+			this.target = target;
+			this.name = name;
+		}
+	}
+
 	private static class TextureBinder
 	{
 		private int index;
@@ -1018,7 +1111,7 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 			index = 0;
 		}
 
-		public void bind( int loc, int textureId )
+		public void bind( int loc, int target, int textureId )
 		{
 			if( loc < 0 ||
 				index >= textureUnits.length )
@@ -1026,9 +1119,7 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 
 			GLES20.glUniform1i( loc, index );
 			GLES20.glActiveTexture( textureUnits[index] );
-			GLES20.glBindTexture(
-				GLES20.GL_TEXTURE_2D,
-				textureId );
+			GLES20.glBindTexture( target, textureId );
 
 			++index;
 		}

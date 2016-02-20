@@ -1,6 +1,7 @@
 package de.markusfisch.android.shadereditor.opengl;
 
 import de.markusfisch.android.shadereditor.app.ShaderEditorApplication;
+import de.markusfisch.android.shadereditor.fragment.TexturePropertiesFragment;
 import de.markusfisch.android.shadereditor.hardware.AccelerometerListener;
 import de.markusfisch.android.shadereditor.hardware.GyroscopeListener;
 import de.markusfisch.android.shadereditor.hardware.MagneticFieldListener;
@@ -79,8 +80,10 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 	private static final long FPS_UPDATE_FREQUENCY_NS = 200000000l;
 	private static final long BATTERY_UPDATE_INTERVAL = 10000000000l;
 	private static final long DATE_UPDATE_INTERVAL = 1000000000l;
-	private static final Pattern SAMPLER = Pattern.compile(
-		"uniform[ \t]+sampler(2D|Cube)+[ \t]+([a-zA-Z0-9]+);" );
+	private static final Pattern SAMPLER_2D = Pattern.compile(
+		"uniform[ \t]+sampler(2D|Cube)+[ \t]+("+
+		TexturePropertiesFragment.TEXTURE_NAME+
+		");" );
 	private static final String VERTEX_SHADER =
 		"attribute vec2 position;"+
 		"void main()"+

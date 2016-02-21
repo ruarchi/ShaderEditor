@@ -80,7 +80,7 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 	private static final long FPS_UPDATE_FREQUENCY_NS = 200000000l;
 	private static final long BATTERY_UPDATE_INTERVAL = 10000000000l;
 	private static final long DATE_UPDATE_INTERVAL = 1000000000l;
-	private static final Pattern SAMPLER_2D = Pattern.compile(
+	private static final Pattern SAMPLER = Pattern.compile(
 		"uniform[ \t]+sampler(2D|Cube)+[ \t]+("+
 		TexturePropertiesFragment.TEXTURE_NAME+
 		");" );
@@ -933,7 +933,7 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 			Texture texture = textureNames.get( n );
 			Bitmap bitmap = ShaderEditorApplication
 				.dataSource
-				.getTexture( texture.name );
+				.getTextureBitmap( texture.name );
 
 			if( bitmap == null )
 				continue;

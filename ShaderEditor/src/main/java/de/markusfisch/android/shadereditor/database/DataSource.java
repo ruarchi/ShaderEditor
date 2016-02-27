@@ -37,13 +37,11 @@ public class DataSource
 	public static final String TEXTURES_MATRIX = "matrix";
 
 	private SQLiteDatabase db;
-	private OpenHelper helper;
 	private Context context;
 	private int textureThumbnailSize;
 
 	public DataSource( Context context )
 	{
-		helper = new OpenHelper( context );
 		this.context = context;
 
 		textureThumbnailSize = Math.round(
@@ -52,23 +50,14 @@ public class DataSource
 				.getDisplayMetrics()
 				.density*48f );
 
-		openAsync( context );
+		openAsync(
+			new OpenHelper( context ),
+			context );
 	}
 
 	public boolean isOpen()
 	{
 		return db != null;
-	}
-
-	public boolean open() throws SQLException
-	{
-		return (db = helper.getWritableDatabase()) != null;
-	}
-
-	public void close()
-	{
-		helper.close();
-		db = null;
 	}
 
 	public static boolean closeIfEmpty( Cursor cursor )
@@ -465,7 +454,9 @@ public class DataSource
 			textureThumbnailSize );
 	}
 
-	private void openAsync( final Context context )
+	private void openAsync(
+		final OpenHelper helper,
+		final Context context )
 	{
 		new AsyncTask<Void, Void, Boolean>()
 		{
@@ -474,7 +465,7 @@ public class DataSource
 			{
 				try
 				{
-					return open();
+					return (db = helper.getWritableDatabase()) != null;
 				}
 				catch( SQLException e )
 				{

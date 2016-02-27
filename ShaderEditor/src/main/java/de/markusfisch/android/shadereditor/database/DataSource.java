@@ -10,6 +10,8 @@ import android.database.Cursor;
 import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.os.AsyncTask;
+import android.widget.Toast;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -42,6 +44,7 @@ public class DataSource
 	public DataSource( Context context )
 	{
 		helper = new OpenHelper( context );
+		this.context = context;
 
 		textureThumbnailSize = Math.round(
 			context
@@ -49,7 +52,7 @@ public class DataSource
 				.getDisplayMetrics()
 				.density*48f );
 
-		this.context = context;
+		openAsync( context );
 	}
 
 	public boolean isOpen()
@@ -460,6 +463,37 @@ public class DataSource
 				context.getResources(),
 				R.drawable.texture_noise ),
 			textureThumbnailSize );
+	}
+
+	private void openAsync( final Context context )
+	{
+		new AsyncTask<Void, Void, Boolean>()
+		{
+			@Override
+			protected Boolean doInBackground( Void... nothings )
+			{
+				try
+				{
+					return open();
+				}
+				catch( SQLException e )
+				{
+					return false;
+				}
+			}
+
+			@Override
+			protected void onPostExecute( Boolean success )
+			{
+				if( success )
+					return;
+
+				Toast.makeText(
+					context,
+					R.string.cannot_open_database,
+					Toast.LENGTH_LONG ).show();
+			}
+		}.execute();
 	}
 
 	private class OpenHelper extends SQLiteOpenHelper

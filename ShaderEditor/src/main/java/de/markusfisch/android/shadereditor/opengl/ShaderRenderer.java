@@ -974,21 +974,18 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 			GLES20.GL_TEXTURE_MAG_FILTER,
 			GLES20.GL_LINEAR );
 
+		// flip bitmap because 0/0 is bottom left in OpenGL
+		Bitmap flippedBitmap = flipBitmap( bitmap );
+
 		GLUtils.texImage2D(
 			GLES20.GL_TEXTURE_2D,
 			0,
 			GLES20.GL_RGBA,
-			// flip bitmap because 0/0 is bottom left in OpenGL
-			Bitmap.createBitmap(
-				bitmap,
-				0,
-				0,
-				bitmap.getWidth(),
-				bitmap.getHeight(),
-				flipMatrix,
-				true ),
+			flippedBitmap,
 			GLES20.GL_UNSIGNED_BYTE,
 			0 );
+
+		flippedBitmap.recycle();
 
 		GLES20.glGenerateMipmap(
 			GLES20.GL_TEXTURE_2D );
@@ -1008,15 +1005,7 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 			GLES20.GL_LINEAR );
 
 		// flip bitmap because 0/0 is bottom left in OpenGL
-		Bitmap b = Bitmap.createBitmap(
-			bitmap,
-			0,
-			0,
-			bitmap.getWidth(),
-			bitmap.getHeight(),
-			flipMatrix,
-			true );
-
+		Bitmap flippedBitmap = flipBitmap( bitmap );
 		int targets[] = {
 				GL11ExtensionPack.GL_TEXTURE_CUBE_MAP_POSITIVE_X,
 				GL11ExtensionPack.GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
@@ -1031,12 +1020,26 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 				targets[n],
 				0,
 				GLES20.GL_RGBA,
-				b,
+				flippedBitmap,
 				GLES20.GL_UNSIGNED_BYTE,
 				0 );
 
+		flippedBitmap.recycle();
+
 		GLES20.glGenerateMipmap(
 			GLES20.GL_TEXTURE_2D );
+	}
+
+	private Bitmap flipBitmap( Bitmap bitmap )
+	{
+		return Bitmap.createBitmap(
+			bitmap,
+			0,
+			0,
+			bitmap.getWidth(),
+			bitmap.getHeight(),
+			flipMatrix,
+			true );
 	}
 
 	private void indexTextureNames( String source )

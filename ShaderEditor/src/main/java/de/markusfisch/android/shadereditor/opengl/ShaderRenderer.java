@@ -43,7 +43,7 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 		public void onFramesPerSecond( int fps );
 	}
 
-	private static final int textureUnits[] = {
+	private static final int TEXTURE_UNITS[] = {
 		GLES20.GL_TEXTURE0,
 		GLES20.GL_TEXTURE1,
 		GLES20.GL_TEXTURE2,
@@ -76,6 +76,13 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 		GLES20.GL_TEXTURE29,
 		GLES20.GL_TEXTURE30,
 		GLES20.GL_TEXTURE31 };
+	private static final int CUBE_MAP_TARGETS[] = {
+		GL11ExtensionPack.GL_TEXTURE_CUBE_MAP_POSITIVE_X,
+		GL11ExtensionPack.GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
+		GL11ExtensionPack.GL_TEXTURE_CUBE_MAP_POSITIVE_Y,
+		GL11ExtensionPack.GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
+		GL11ExtensionPack.GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
+		GL11ExtensionPack.GL_TEXTURE_CUBE_MAP_NEGATIVE_Z };
 	private static final float NS_PER_SECOND = 1000000000f;
 	private static final long FPS_UPDATE_FREQUENCY_NS = 200000000l;
 	private static final long BATTERY_UPDATE_INTERVAL = 10000000000l;
@@ -223,13 +230,20 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 
 		if( surfaceProgram != 0 )
 		{
-			GLES20.glDeleteProgram( surfaceProgram );
+			//GLES20.glDeleteProgram( surfaceProgram );
+			// DEBUG:
+			// I *think* this is never required because
+			// GLSurfaceView::onPause() destroys the
+			// GL context what also deletes all programs.
+			// Therefore, (on some devices) I see:
+			// <core_glDeleteProgram:594>: GL_INVALID_VALUE
 			surfaceProgram = 0;
 		}
 
 		if( program != 0 )
 		{
-			GLES20.glDeleteProgram( program );
+			//GLES20.glDeleteProgram( program );
+			// same as above
 			program = 0;
 
 			deleteTargets();
@@ -971,7 +985,14 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 			GLES20.GL_LINEAR );
 
 		// flip bitmap because 0/0 is bottom left in OpenGL
-		Bitmap flippedBitmap = flipBitmap( bitmap );
+		Bitmap flippedBitmap = Bitmap.createBitmap(
+			bitmap,
+			0,
+			0,
+			bitmap.getWidth(),
+			bitmap.getHeight(),
+			flipMatrix,
+			true );
 
 		GLUtils.texImage2D(
 			GLES20.GL_TEXTURE_2D,
@@ -1000,42 +1021,46 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 			GLES20.GL_TEXTURE_MIN_FILTER,
 			GLES20.GL_LINEAR );
 
-		// flip bitmap because 0/0 is bottom left in OpenGL
-		Bitmap flippedBitmap = flipBitmap( bitmap );
-		int targets[] = {
-				GL11ExtensionPack.GL_TEXTURE_CUBE_MAP_POSITIVE_X,
-				GL11ExtensionPack.GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
-				GL11ExtensionPack.GL_TEXTURE_CUBE_MAP_POSITIVE_Y,
-				GL11ExtensionPack.GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
-				GL11ExtensionPack.GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
-				GL11ExtensionPack.GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
-			};
+		int bitmapWidth = bitmap.getWidth();
+		int bitmapHeight = bitmap.getHeight();
+		int sideWidth = (int)Math.ceil( bitmapWidth/2f );
+		int sideHeight = (int)Math.round( bitmapHeight/3f );
+		int sideLength = Math.min( sideWidth, sideHeight );
+		int x = 0;
+		int y = 0;
 
-		for( int n = 0, l = targets.length; n < l; ++n )
+		for( int n = 0, l = CUBE_MAP_TARGETS.length; n < l; ++n )
+		{
+			Bitmap side = Bitmap.createBitmap(
+				bitmap,
+				x,
+				y,
+				// cube textures need to be quadratic
+				sideLength,
+				sideLength,
+				// flip bitmap because 0/0 is bottom left in OpenGL
+				flipMatrix,
+				true );
+
 			GLUtils.texImage2D(
-				targets[n],
+				CUBE_MAP_TARGETS[n],
 				0,
 				GLES20.GL_RGBA,
-				flippedBitmap,
+				side,
 				GLES20.GL_UNSIGNED_BYTE,
 				0 );
 
-		flippedBitmap.recycle();
+			side.recycle();
+
+			if( (x += sideWidth) >= bitmapWidth )
+			{
+				x = 0;
+				y += sideHeight;
+			}
+		}
 
 		GLES20.glGenerateMipmap(
-			GLES20.GL_TEXTURE_2D );
-	}
-
-	private Bitmap flipBitmap( Bitmap bitmap )
-	{
-		return Bitmap.createBitmap(
-			bitmap,
-			0,
-			0,
-			bitmap.getWidth(),
-			bitmap.getHeight(),
-			flipMatrix,
-			true );
+			GLES20.GL_TEXTURE_CUBE_MAP );
 	}
 
 	private void indexTextureNames( String source )
@@ -1099,11 +1124,11 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 		public void bind( int loc, int target, int textureId )
 		{
 			if( loc < 0 ||
-				index >= textureUnits.length )
+				index >= TEXTURE_UNITS.length )
 				return;
 
 			GLES20.glUniform1i( loc, index );
-			GLES20.glActiveTexture( textureUnits[index] );
+			GLES20.glActiveTexture( TEXTURE_UNITS[index] );
 			GLES20.glBindTexture( target, textureId );
 
 			++index;

@@ -106,12 +106,13 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 		"}";
 
 	private final TextureBinder textureBinder = new TextureBinder();
-	private final ArrayList<Texture> textureNames = new ArrayList<Texture>();
+	private final ArrayList<String> textureNames = new ArrayList<String>();
 	private final Matrix flipMatrix = new Matrix();
 	private final Calendar calendar = Calendar.getInstance();
 	private final int fb[] = new int[]{ 0, 0 };
 	private final int tx[] = new int[]{ 0, 0 };
 	private final int textureLocs[] = new int[32];
+	private final int textureTargets[] = new int[32];
 	private final int textureIds[] = new int[32];
 	private final float surfaceResolution[] = new float[]{ 0, 0 };
 	private final float resolution[] = new float[]{ 0, 0 };
@@ -238,8 +239,8 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 			fragmentShader.length() > 0 )
 		{
 			resetFps();
-			loadProgram();
 			createTextures();
+			loadProgram();
 		}
 	}
 
@@ -447,14 +448,10 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 				tx[backTarget] );
 
 		for( int n = 0; n < numberOfTextures; ++n )
-		{
-			Texture texture = textureNames.get( n );
-
 			textureBinder.bind(
 				textureLocs[n],
-				texture.target,
+				textureTargets[n],
 				textureIds[n] );
-		}
 
 		GLES20.glBindFramebuffer(
 			GLES20.GL_FRAMEBUFFER,
@@ -681,10 +678,10 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 		backBufferLoc = GLES20.glGetUniformLocation(
 			program, "backbuffer" );
 
-		for( int n = textureNames.size(); n-- > 0; )
+		for( int n = numberOfTextures; n-- > 0; )
 			textureLocs[n] = GLES20.glGetUniformLocation(
 				program,
-				textureNames.get( n ).name );
+				textureNames.get( n ) );
 	}
 
 	private void registerListeners()
@@ -923,10 +920,6 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 	{
 		deleteTextures();
 
-		numberOfTextures = Math.min(
-			textureIds.length,
-			textureNames.size() );
-
 		GLES20.glGenTextures(
 			numberOfTextures,
 			textureIds,
@@ -934,15 +927,14 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 
 		for( int n = 0; n < numberOfTextures; ++n )
 		{
-			Texture texture = textureNames.get( n );
 			Bitmap bitmap = ShaderEditorApplication
 				.dataSource
-				.getTextureBitmap( texture.name );
+				.getTextureBitmap( textureNames.get( n ) );
 
 			if( bitmap == null )
 				continue;
 
-			switch( texture.target )
+			switch( textureTargets[n] )
 			{
 				case GLES20.GL_TEXTURE_2D:
 					createTexture( textureIds[n], bitmap );
@@ -1052,9 +1044,12 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 			return;
 
 		textureNames.clear();
+		numberOfTextures = 0;
+
+		final int maxTextures = textureIds.length;
 
 		for( Matcher m = SAMPLER.matcher( source );
-			m.find(); )
+			m.find() && numberOfTextures < maxTextures; )
 		{
 			String type = m.group( 1 );
 			String name = m.group( 2 );
@@ -1073,7 +1068,8 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 			else
 				continue;
 
-			textureNames.add( new Texture( target, name ) );
+			textureTargets[numberOfTextures++] = target;
+			textureNames.add( name );
 		}
 	}
 
@@ -1089,18 +1085,6 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 			BatteryManager.EXTRA_SCALE, -1 );
 
 		return (float)level/scale;
-	}
-
-	private static class Texture
-	{
-		public final int target;
-		public final String name;
-
-		public Texture( int target, String name )
-		{
-			this.target = target;
-			this.name = name;
-		}
 	}
 
 	private static class TextureBinder

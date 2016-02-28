@@ -447,10 +447,14 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 				tx[backTarget] );
 
 		for( int n = 0; n < numberOfTextures; ++n )
+		{
+			Texture texture = textureNames.get( n );
+
 			textureBinder.bind(
 				textureLocs[n],
-				GLES20.GL_TEXTURE_2D,
+				texture.target,
 				textureIds[n] );
+		}
 
 		GLES20.glBindFramebuffer(
 			GLES20.GL_FRAMEBUFFER,

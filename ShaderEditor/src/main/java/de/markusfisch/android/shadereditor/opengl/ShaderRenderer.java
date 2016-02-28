@@ -82,7 +82,7 @@ public class ShaderRenderer implements GLSurfaceView.Renderer
 	private static final long DATE_UPDATE_INTERVAL = 1000000000l;
 	private static final Pattern SAMPLER = Pattern.compile(
 		"uniform[ \t]+sampler(2D|Cube)+[ \t]+("+
-		TexturePropertiesFragment.TEXTURE_NAME+
+		TexturePropertiesFragment.TEXTURE_NAME_PATTERN+
 		");" );
 	private static final String VERTEX_SHADER =
 		"attribute vec2 position;"+

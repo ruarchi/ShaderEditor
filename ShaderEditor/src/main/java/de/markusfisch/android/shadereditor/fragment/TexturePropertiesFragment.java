@@ -32,13 +32,13 @@ import java.util.regex.Pattern;
 
 public class TexturePropertiesFragment extends Fragment
 {
-	public static final String TEXTURE_NAME = "[a-zA-Z0-9_]+";
+	public static final String TEXTURE_NAME_PATTERN = "[a-zA-Z0-9_]+";
 
 	private static final String IMAGE_URI = "image_uri";
 	private static final String CROP_RECT = "crop_rect";
 	private static final String ROTATION = "rotation";
 	private static final Pattern NAME_PATTERN = Pattern.compile(
-		"^"+TEXTURE_NAME+"$" );
+		"^"+TEXTURE_NAME_PATTERN+"$" );
 
 	private static boolean inProgress = false;
 
@@ -238,7 +238,7 @@ public class TexturePropertiesFragment extends Fragment
 			return;
 		}
 		else if(
-			!name.matches( TEXTURE_NAME ) ||
+			!name.matches( TEXTURE_NAME_PATTERN ) ||
 			name.equals( "backbuffer" ) )
 		{
 			Toast.makeText(

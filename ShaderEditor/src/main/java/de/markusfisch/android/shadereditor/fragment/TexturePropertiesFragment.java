@@ -161,8 +161,6 @@ public class TexturePropertiesFragment extends Fragment
 		sizeBarView.setOnSeekBarChangeListener(
 			new SeekBar.OnSeekBarChangeListener()
 			{
-				int progress = 0;
-
 				@Override
 				public void onProgressChanged(
 					SeekBar seekBar,
@@ -318,8 +316,6 @@ public class TexturePropertiesFragment extends Fragment
 	{
 		if( bitmap == null )
 			return 0;
-
-		System.gc();
 
 		try
 		{

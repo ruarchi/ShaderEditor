@@ -1,5 +1,5 @@
 PACKAGE = de.markusfisch.android.shadereditor
-APK = ShaderEditor/build/outputs/apk/ShaderEditor-debug.apk
+APK = app/build/outputs/apk/app-debug.apk
 
 all: debug install start
 
@@ -15,6 +15,9 @@ release: lint
 
 lint:
 	./gradlew lintDebug
+
+findbugs:
+	./gradlew findBugs
 
 install:
 	adb $(TARGET) install -rk $(APK)
